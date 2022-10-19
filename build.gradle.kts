@@ -1,9 +1,9 @@
 import org.jetbrains.compose.compose
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-	kotlin("multiplatform")
+	kotlin("jvm")
+	kotlin("plugin.serialization") version "1.7.20"
 	id("org.jetbrains.compose")
 }
 
@@ -16,21 +16,19 @@ repositories {
 	maven("https://maven.pkg.jetbrains.space/public/p/compose/dev")
 }
 
-kotlin {
-	jvm {
-		compilations.all {
-			kotlinOptions.jvmTarget = "11"
-		}
-		withJava()
-	}
-	sourceSets {
-		val jvmMain by getting {
-			dependencies {
-				implementation(compose.desktop.currentOs)
-			}
-		}
-		val jvmTest by getting
-	}
+val ktorVersion = "2.1.2"
+dependencies {
+	implementation(compose.desktop.currentOs)
+
+	implementation("me.nullicorn:ms-to-mca:0.0.1")
+
+	//val ktorVersion = "2.1.2"
+	implementation("io.ktor:ktor-client-core:$ktorVersion")
+	implementation("io.ktor:ktor-client-cio:$ktorVersion")
+	implementation("io.ktor:ktor-client-content-negotiation:$ktorVersion")
+	implementation("io.ktor:ktor-serialization-kotlinx-json:$ktorVersion")
+	implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4")
+	implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.4.1")
 }
 
 compose.desktop {

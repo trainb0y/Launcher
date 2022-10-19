@@ -1,51 +1,40 @@
 package io.github.trainb0y.launcher
 
-import io.ktor.client.HttpClient
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.client.request.forms.submitForm
-import io.ktor.client.statement.bodyAsText
-import io.ktor.http.Parameters
-import io.ktor.serialization.kotlinx.json.json
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.jsonObject
+import com.microsoft.aad.msal4j.IAuthenticationResult
+import com.microsoft.aad.msal4j.InteractiveRequestParameters
+import com.microsoft.aad.msal4j.PublicClientApplication
+import com.nimbusds.oauth2.sdk.Scope
 import me.nullicorn.msmca.minecraft.MinecraftAuth
 import me.nullicorn.msmca.minecraft.MinecraftToken
+import java.net.URI
 
-suspend fun login(clientId: String): MinecraftToken {
-	// this is a complete mess of hacky taped-together code
-	// that provies the bare minimum for getting a microsoft token, with 0 error handling,
-	// and shoves it into ms-to-mca and hopes and prays that it works.
-	//
-	// Good enough for now:tm:
 
-	val client = HttpClient {
-		install(ContentNegotiation) {
-			json(Json {
-				prettyPrint = true
-				isLenient = true
-			})
-		}
+object Auth {
+	// todo: https://learn.microsoft.com/en-us/azure/active-directory/develop/msal-java-token-cache-serialization
+	// todo: https://learn.microsoft.com/en-us/azure/active-directory/develop/scenario-desktop-acquire-token?tabs=java
+
+	val redirectUri = URI("http://localhost:4321/")
+	val clientId = System.getenv("MICROSOFT_CLIENT_ID") //todo: replace with something in launcher config
+
+	fun getMicrosoftToken(): String {
+		val publicClientApplication: PublicClientApplication = PublicClientApplication
+			.builder(clientId)
+			.build()
+
+		val parameters: InteractiveRequestParameters = InteractiveRequestParameters
+			.builder(redirectUri)
+			.scopes(setOf("XboxLive.signin"))
+			.build()
+
+		val result: IAuthenticationResult = publicClientApplication.acquireToken(parameters).join()
+		return result.accessToken()
 	}
 
-	val redirectUri = "https://localhost/microstupid_auth"
+	fun getMinecraftToken(): MinecraftToken {
+		return MinecraftAuth().loginWithMicrosoft(getMicrosoftToken())
+	}
+}
 
-	println("https://login.live.com/oauth20_authorize.srf?client_id=$clientId&response_type=code&redirect_uri=$redirectUri&scope=XboxLive.signin%20offline_access")
-
-	val msCode = readln().split("code=")[1]
-
-	val msToken = Json.parseToJsonElement(
-		client.submitForm(
-			url = "https://login.live.com/oauth20_token.srf",
-			formParameters = Parameters.build {
-				append("client_id", clientId)
-				append("redirect_uri", redirectUri)
-				append("code", msCode)
-				append("grant_type", "authorization_code")
-			},
-			// encodeInQuery = true
-
-		).bodyAsText()
-	).jsonObject["access_token"].toString()
-
-	return MinecraftAuth().loginWithMicrosoft(msToken)
+fun main() {
+	println(Auth.getMinecraftToken())
 }
